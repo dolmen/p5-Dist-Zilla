@@ -493,6 +493,37 @@ sub _build_archive_with_wrapper {
   return $archive;
 }
 
+{
+  package  # Not to be indexed
+      Dist::Zilla::Dist::Builder::Dir::WithLink;
+  our @ISA = 'Path::Class::Dir';
+  sub new_with_link {
+    my $link = pop;
+    $link = Path::Class::File->new($link)->absolute->stringify;
+    warn $link;
+    my $class = shift;
+    my $self = $class->SUPER::new(@_);
+    $self->{link_at_destroy} = [ $self->absolute->stringify, $link ];
+    return $self;
+  }
+  sub new {
+    my $self = shift;
+    Path::Class::Dir->new(@_);
+  }
+  sub DESTROY {
+    my $self = shift;
+    # If the directory still exists when we no longer use it,
+    # we create the 'latest' link pointing to it.
+    # This is just a "best effort".
+    warn "DESTROY";
+    if ($self->{link_at_destroy} && stat $self->{link_at_destroy}[0]) {
+      eval { symlink $self->{link_at_destroy}->[0], $self->{link_at_destroy}->[1]; 1 }
+        or warn $@;
+    }
+  }
+}
+
+
 sub _prep_build_root {
   my ($self, $build_root) = @_;
 
@@ -503,6 +534,9 @@ sub _prep_build_root {
   my $dist_root = $self->root;
 
   $build_root->rmtree if -d $build_root;
+
+  $build_root = Dist::Zilla::Dist::Builder::Dir::WithLink->new_with_link(
+                  $build_root, dir(qw<.build latest>));
 
   return $build_root;
 }
