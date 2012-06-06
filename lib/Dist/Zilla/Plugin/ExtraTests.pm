@@ -61,7 +61,8 @@ BEGIN {
     Test::More::plan(skip_all => 'these tests are for $msg');
   }
 }
-|;
+|,
+  '|#line '.($after+1).' "'.$file->name.'"';
 
   $file->content(join "\n", @lines, '');
 }
