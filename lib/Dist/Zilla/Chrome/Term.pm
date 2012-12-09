@@ -11,6 +11,7 @@ terminal environment.  It's the default chrome used by L<Dist::Zilla::App>.
 
 use Dist::Zilla::Types qw(OneZero);
 use Log::Dispatchouli 1.102220;
+use Term::Encoding;
 
 use namespace::autoclean;
 
@@ -20,6 +21,9 @@ has logger => (
   init_arg => undef,
   writer   => '_set_logger',
   default  => sub {
+    # TODO use an other encoding if output isn't a terminal ?
+    print "Hello\n";
+    binmode(STDOUT, ':encoding('.Term::Encoding::get_encoding().')');
     Log::Dispatchouli->new({
       ident     => 'Dist::Zilla',
       to_stdout => 1,
@@ -37,17 +41,10 @@ has term_ui => (
   default => sub {
     require Term::ReadLine;
     require Term::UI;
+    binmode(STDIN, ':encoding('.Term::Encoding::get_encoding().')');
     Term::ReadLine->new('dzil')
   },
 );
-
-sub decode_utf8 ($;$)
-{
-    require Encode;
-    no warnings 'redefine';
-    *decode_utf8 = \&Encode::decode_utf8;
-    goto \&decode_utf8;
-}
 
 
 sub prompt_str {
@@ -60,7 +57,7 @@ sub prompt_str {
     require Term::ReadKey;
     Term::ReadKey::ReadMode('noecho');
   }
-  my $input_bytes = $self->term_ui->get_reply(
+  my $input = $self->term_ui->get_reply(
     prompt => $prompt,
     allow  => $check || sub { defined $_[0] and length $_[0] },
     (defined $default ? (default => $default) : ()),
@@ -72,7 +69,6 @@ sub prompt_str {
     print "\n";
   }
 
-  my $input = decode_utf8( $input_bytes );
   chomp $input;
 
   return $input;
