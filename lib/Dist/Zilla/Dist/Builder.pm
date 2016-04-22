@@ -54,11 +54,10 @@ sub from_config {
 
 sub _setup_default_plugins {
   my ($self) = @_;
-  unless ($self->plugin_named(':InstallModules')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+
+  my @default_finder_plugins = (
+    {
       plugin_name => ':InstallModules',
-      zilla       => $self,
       style       => 'grep',
       code        => sub {
         my ($file, $self) = @_;
@@ -66,16 +65,9 @@ sub _setup_default_plugins {
         return 1 if m{\Alib/} and m{\.(pm|pod)$};
         return;
       },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':IncModules')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':IncModules',
-      zilla       => $self,
       style       => 'grep',
       code        => sub {
         my ($file, $self) = @_;
@@ -83,40 +75,19 @@ sub _setup_default_plugins {
         return 1 if m{\Ainc/} and m{\.pm$};
         return;
       },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':TestFiles')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':TestFiles',
-      zilla       => $self,
       style       => 'grep',
       code        => sub { local $_ = $_->name; m{\At/} },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':ExtraTestFiles')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':ExtraTestFiles',
-      zilla       => $self,
       style       => 'grep',
       code        => sub { local $_ = $_->name; m{\Axt/} },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':ExecFiles')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':ExecFiles',
-      zilla       => $self,
       style       => 'list',
       code        => sub {
         my $plugins = $_[0]->zilla->plugins_with(-ExecFiles);
@@ -124,16 +95,9 @@ sub _setup_default_plugins {
 
         return \@files;
       },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':PerlExecFiles')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':PerlExecFiles',
-      zilla       => $self,
       style       => 'list',
       code        => sub {
         my $parent_plugin = $self->plugin_named(':ExecFiles');
@@ -143,16 +107,9 @@ sub _setup_default_plugins {
         } @{ $parent_plugin->find_files };
         return \@files;
       },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':ShareFiles')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':ShareFiles',
-      zilla       => $self,
       style       => 'list',
       code        => sub {
         my $self = shift;
@@ -170,16 +127,9 @@ sub _setup_default_plugins {
         }
         return \@files;
       },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':MainModule')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':MainModule',
-      zilla       => $self,
       style       => 'grep',
       code        => sub {
         my ($file, $self) = @_;
@@ -187,34 +137,27 @@ sub _setup_default_plugins {
         return 1 if $_ eq $self->zilla->main_module->name;
         return;
       },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':AllFiles')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':AllFiles',
-      zilla       => $self,
       style       => 'grep',
       code        => sub { return 1 },
-    });
-
-    push @{ $self->plugins }, $plugin;
-  }
-
-  unless ($self->plugin_named(':NoFiles')) {
-    require Dist::Zilla::Plugin::FinderCode;
-    my $plugin = Dist::Zilla::Plugin::FinderCode->new({
+    },
+    {
       plugin_name => ':NoFiles',
-      zilla       => $self,
       style       => 'list',
       code        => sub { return },
-    });
+    },
+  );
 
-    push @{ $self->plugins }, $plugin;
+  foreach my $plugin_def (@default_finder_plugins) {
+    next if $self->plugin_named($plugin_def->{'plugin_name'});
+
+    require Dist::Zilla::Plugin::FinderCode;
+    $plugin_def->{'zilla'} = $self;
+    push @{ $self->plugins }, Dist::Zilla::Plugin::FinderCode->new($plugin_def);
   }
+
 }
 
 has _share_dir_map => (
